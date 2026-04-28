@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM — System Design · Chris Kirilov</title>
+<meta name="description" content="Technical walkthrough of OM's architecture: 88K jobs, 184K evaluations, 186-node knowledge graph. Map-once, score-forever — converting an O(users × jobs) LLM problem into pure math.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf6ef;
+  --bg-alt: #f3ecdc;
+  --bg-soft: #f7f1e3;
+  --ink: #1a2942;
+  --ink-soft: #44516b;
+  --ink-muted: #8a93a8;
+  --accent: #c45842;
+  --accent-soft: #d97a5a;
+  --rule: #e2d8c1;
+  --rule-soft: #ece4d2;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--accent); color: var(--bg); }
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 32px 120px;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 48px;
+}
+
+.meta a {
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+.meta a:hover { color: var(--ink); }
+
+.meta .breadcrumb {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.meta .breadcrumb a {
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.meta .breadcrumb a:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.title-block {
+  margin-bottom: 56px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 6vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+  color: var(--ink);
+}
+
+h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.subtitle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  max-width: 640px;
+}
+
+.toc {
+  margin: 48px 0 64px;
+  padding: 24px 28px;
+  background: var(--bg-alt);
+  border-radius: 6px;
+}
+
+.toc-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.toc ol {
+  list-style: none;
+  counter-reset: toc;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 32px;
+}
+
+.toc li {
+  counter-increment: toc;
+  position: relative;
+  padding-left: 26px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.toc li::before {
+  content: counter(toc, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.toc a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.toc a:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+section {
+  margin-bottom: 64px;
+  scroll-margin-top: 24px;
+}
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(28px, 4vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+h2 .num {
+  font-style: italic;
+  color: var(--accent);
+  font-size: 0.55em;
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+p {
+  margin-bottom: 18px;
+  color: var(--ink-soft);
+}
+
+p:last-child { margin-bottom: 0; }
+
+p strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.lead {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink);
+  font-weight: 400;
+  margin-bottom: 24px;
+}
+
+a.inline {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 1px;
+  transition: background 0.2s ease;
+}
+
+a.inline:hover { background: rgba(196, 88, 66, 0.08); }
+
+code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg-alt);
+  color: var(--ink);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: -0.005em;
+}
+
+ul, ol {
+  margin-bottom: 18px;
+  padding-left: 0;
+  list-style: none;
+}
+
+ul li, ol li {
+  position: relative;
+  padding: 6px 0 6px 24px;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+ul li::before {
+  content: '◇';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 12px;
+  top: 9px;
+}
+
+ol {
+  counter-reset: olist;
+}
+
+ol li {
+  counter-increment: olist;
+  padding-left: 32px;
+}
+
+ol li::before {
+  content: counter(olist) '.';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  top: 6px;
+}
+
+.honest {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15.5px;
+  color: var(--ink-muted);
+  line-height: 1.55;
+  padding: 14px 18px;
+  border-left: 2px solid var(--rule);
+  margin: 16px 0;
+}
+
+.honest::before {
+  content: 'Honest framing — ';
+  color: var(--accent);
+  font-style: italic;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 14px;
+}
+
+table thead th {
+  text-align: left;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--accent);
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--ink);
+  letter-spacing: 0;
+}
+
+table tbody td {
+  padding: 14px 16px 14px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+table tbody td:first-child {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+table tbody td.num {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+table tbody td code {
+  font-size: 12px;
+  background: var(--bg-alt);
+  padding: 1px 5px;
+}
+
+table tbody tr:last-child td {
+  border-bottom: 1px solid var(--ink);
+}
+
+.system-figure {
+  margin: 32px -16px;
+  padding: 24px 16px 16px;
+  background: var(--bg-alt);
+  border-radius: 8px;
+}
+
+.system-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.system-figure figcaption {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  text-align: center;
+  margin-top: 12px;
+  padding: 0 16px;
+  line-height: 1.5;
+}
+
+.callout {
+  background: var(--bg-alt);
+  border-radius: 6px;
+  padding: 22px 26px;
+  margin: 28px 0;
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.callout-label {
+  display: block;
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.cost-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 28px 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cost-cell {
+  padding: 24px 26px;
+  background: var(--bg);
+}
+
+.cost-cell:first-child {
+  border-right: 1px solid var(--rule);
+  background: var(--bg-soft);
+}
+
+.cost-cell .cost-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.cost-cell .cost-approach {
+  font-family: var(--serif);
+  font-size: 19px;
+  color: var(--ink);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.cost-cell .cost-approach em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.cost-cell .cost-detail {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.cost-cell .cost-value {
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+.cost-cell .cost-value em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.closing {
+  margin-top: 96px;
+  padding: 56px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  text-align: center;
+}
+
+.closing-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+
+.closing-statement {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 24px;
+}
+
+.closing-statement em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.closing-body {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+.closing-body em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--accent);
+  background: var(--bg-alt);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-muted);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+footer .back {
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  border-bottom: 1px solid var(--ink-muted);
+  padding-bottom: 2px;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+footer .back:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .page { padding: 36px 22px 80px; }
+  .toc ol { grid-template-columns: 1fr; }
+  .system-figure { margin: 24px -10px; }
+  .cost-grid { grid-template-columns: 1fr; }
+  .cost-cell:first-child { border-right: none; border-bottom: 1px solid var(--rule); }
+  table { font-size: 13px; }
+  table thead th, table tbody td { padding: 10px 8px 10px 0; }
+  footer { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<article class="page">
+
+  <header class="meta">
+    <span class="breadcrumb"><a href="om-case-study.html">← OM case study</a></span>
+    <a href="https://chriskirilov.com">chriskirilov.com</a>
+  </header>
+
+  <div class="title-block">
+    <div class="eyebrow">OM · System design notes</div>
+    <h1>Map-once,<br><em>score-forever</em></h1>
+    <p class="subtitle">An eight-section technical walkthrough of OM's architecture — what's built, what works, what breaks, and what I'd build differently with a real engineering team.</p>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-label">Contents</div>
+    <ol>
+      <li><a href="#problem">Problem statement</a></li>
+      <li><a href="#architecture">High-level architecture</a></li>
+      <li><a href="#data-model">Data model</a></li>
+      <li><a href="#ingestion">Ingestion layer</a></li>
+      <li><a href="#enrichment">Enrichment + AI layer</a></li>
+      <li><a href="#ranking">Ranking architecture</a></li>
+      <li><a href="#operations">Operations</a></li>
+      <li><a href="#forward">What I'd build differently, and where it breaks</a></li>
+    </ol>
+  </nav>
+
+  <section id="problem">
+    <h2><span class="num">01</span>Problem statement</h2>
+    <p class="lead">OM compresses the job-search loop for power-users — every relevant new posting on the open web, scored against a user's actual experience, in a feed they can act on in under five minutes a day.</p>
+    <p>Same engine doubles as account-level prospecting infrastructure: once you can rank "is this job a fit for this person," you can rank "is this account a fit for our ICP." The architecture is the same; the entities swap.</p>
+    <p><strong>Operating cadence.</strong> ~5,000 (operator, opportunity) evaluations per daily scoring cycle. 12-hour median latency from a posting going live on its source ATS to appearing in the feed. ~600 LLM calls per day at sub-$1 daily inference cost. 88K active jobs, 184K cumulative evaluations, 800+ source boards across 8 ATS platforms. The architectural decisions in the rest of this document are calibrated against that load profile — and against the load profile two orders of magnitude beyond it (covered in §8).</p>
+  </section>
+
+  <section id="architecture">
+    <h2><span class="num">02</span>High-level architecture</h2>
+    <p class="lead">Eight stages, registry-driven scrape into a single SQLite database, with the ingestion path feeding both a graph mapper and a Flask API.</p>
+
+    <figure class="system-figure">
+      <svg viewBox="0 0 680 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OM ingestion architecture diagram with seven stages and seven failure modes annotated below.">
+        <defs>
+          <marker id="om-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#1a2942" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <marker id="om-arrow-coral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#c45842" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <text x="40" y="42" fill="#8a93a8" style="font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500;">Signal path</text>
+        <g><rect x="40" y="64" width="84" height="48" rx="6" fill="#f3ecdc" stroke="#1a2942" stroke-width="0.5"/><text x="82" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Sources</text><text x="82" y="102" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">8 ATSes</text></g>
+        <line x1="124" y1="88" x2="148" y2="88" stroke="#1a2942" stroke-width="0.5" marker-end="url(#om-arrow)"/>
+        <g><rect x="152" y="64" width="84" height="48" rx="6" fill="#f3ecdc" stroke="#1a2942" stroke-width="0.5"/><text x="194" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Dispatch</text><text x="194" y="102" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Threadpool</text></g>
+        <line x1="236" y1="88" x2="260" y2="88" stroke="#1a2942" stroke-width="0.5" marker-end="url(#om-arrow)"/>
+        <g><rect x="264" y="64" width="84" height="48" rx="6" fill="#f3ecdc" stroke="#1a2942" stroke-width="0.5"/><text x="306" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Normalize</text><text x="306" y="102" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Uniform dict</text></g>
+        <line x1="348" y1="88" x2="372" y2="88" stroke="#1a2942" stroke-width="0.5" marker-end="url(#om-arrow)"/>
+        <g><rect x="376" y="64" width="84" height="48" rx="6" fill="#f3ecdc" stroke="#1a2942" stroke-width="0.5"/><text x="418" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">SQLite</text><text x="418" y="102" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Upsert by url</text></g>
+        <line x1="460" y1="88" x2="484" y2="88" stroke="#1a2942" stroke-width="0.5" marker-end="url(#om-arrow)"/>
+        <g><rect x="488" y="64" width="84" height="48" rx="6" fill="#f3ecdc" stroke="#1a2942" stroke-width="0.5"/><text x="530" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Enrich</text><text x="530" y="102" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Async, Claude</text></g>
+        <line x1="572" y1="88" x2="596" y2="88" stroke="#c45842" stroke-width="0.7" marker-end="url(#om-arrow-coral)"/>
+        <g><rect x="600" y="64" width="40" height="48" rx="6" fill="#f7d9cd" stroke="#c45842" stroke-width="0.7"/><text x="620" y="86" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Rank</text><text x="620" y="102" text-anchor="middle" fill="#c45842" style="font-family: var(--sans); font-size: 11px; font-weight: 500;">×2</text></g>
+        <line x1="404" y1="148" x2="404" y2="172" stroke="#8a93a8" stroke-width="0.5" stroke-dasharray="3 3"/>
+        <g><rect x="304" y="178" width="200" height="44" rx="6" fill="#f7d9cd" stroke="#c45842" stroke-width="0.7"/><text x="404" y="198" text-anchor="middle" fill="#1a2942" style="font-family: var(--serif); font-size: 14px; font-style: italic;">Flask API</text><text x="404" y="214" text-anchor="middle" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Bearer auth, 4 endpoints</text></g>
+        <text x="40" y="270" fill="#8a93a8" style="font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500;">Silent-drop failure modes</text>
+        <g><line x1="40" y1="296" x2="50" y2="296" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="58" y="299" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">Sources</text><text x="58" y="316" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Stale registry, 404 cached</text></g>
+        <g><line x1="200" y1="296" x2="210" y2="296" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="218" y="299" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">Dispatch</text><text x="218" y="316" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">429s drop boards</text></g>
+        <g><line x1="360" y1="296" x2="370" y2="296" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="378" y="299" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">Normalize</text><text x="378" y="316" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">New ATS field, drops silently</text></g>
+        <g><line x1="540" y1="296" x2="550" y2="296" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="558" y="299" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">SQLite</text><text x="558" y="316" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Two URLs, two rows</text></g>
+        <g><line x1="40" y1="352" x2="50" y2="352" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="58" y="355" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">Enrich</text><text x="58" y="372" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Rate limit, queue backs up</text></g>
+        <g><line x1="200" y1="352" x2="210" y2="352" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="218" y="355" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">Rank</text><text x="218" y="372" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Skipped remap, graph drifts</text></g>
+        <g><line x1="360" y1="352" x2="370" y2="352" stroke="#c45842" stroke-width="2" stroke-linecap="round"/><text x="378" y="355" fill="#c45842" style="font-family: var(--sans); font-size: 11.5px; font-weight: 500;">API</text><text x="378" y="372" fill="#44516b" style="font-family: var(--sans); font-size: 11px;">Per-route auth, ships open</text></g>
+      </svg>
+      <figcaption>The signal flows top-left to top-right. The Rank node forks into the Flask API. Each stage carries a known failure mode, surfaced below.</figcaption>
+    </figure>
+
+    <p>Two design commitments worth defending:</p>
+    <ul>
+      <li><strong>Registry-driven, not crawler-driven.</strong> <code>company_boards</code> is the canonical source of truth for what gets scraped. Every scrape decision is a row, not a hard-coded list.</li>
+      <li><strong>Map-once, score-forever.</strong> The expensive LLM work — mapping a user or a job to a skill graph — happens once at ingest. Scoring is deterministic math at query time. This is the cost story I'll defend in §6.</li>
+    </ul>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">API contract</h3>
+    <p>Flask, Bearer auth via <code>DB_SYNC_API_KEY</code>. Four endpoints, JSON request/response.</p>
+
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/api/tasks/claude/board</code></td><td>GET</td><td>Ranked feed grouped by funnel stage. Returns <code>{stage: [opportunity]}</code>.</td></tr>
+        <tr><td><code>/api/tasks/claude/triage</code></td><td>GET</td><td>Daily AI focus pick. 30-min cache. Returns <code>{focus, rationale, opportunities[]}</code>.</td></tr>
+        <tr><td><code>/api/tasks/claude/batch</code></td><td>POST</td><td>Batched write ops, ≤50 per request. Body: <code>{ops: [{type, opportunity_id, payload}]}</code>.</td></tr>
+        <tr><td><code>/api/add-opportunity</code></td><td>POST</td><td>Manual or extension-driven ingest. Body: <code>{url, ...metadata}</code>. Triggers <code>try_register_board()</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="honest">Auth is per-route via <code>@login_required</code>, not central middleware. A new endpoint shipped without the decorator ships unauthenticated. I'd move to a Flask blueprint with auth applied at registration before another engineer touches the surface.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Trade-offs</h3>
+    <ul>
+      <li><strong>SQLite over Postgres.</strong> Gives up concurrent writers, gains operational simplicity (single file, <code>cp</code> backup, no daemon). Defended in §7. Inflection point at 10× users, covered in §8.</li>
+      <li><strong>Deterministic graph over vector embeddings.</strong> Gives up semantic generalization (an embedding might match "Python" to "scripting" automatically), gains explainability and zero query-time LLM cost. The 186-node graph is hand-curated — feature for explainability, bug at 10K node scale.</li>
+      <li><strong>Map-once over score-on-the-fly.</strong> The whole §6 argument. Gives up flexibility (changing the graph requires re-mapping all jobs), gains 250×–1,000× cost reduction.</li>
+    </ul>
+  </section>
+
+  <section id="data-model">
+    <h2><span class="num">03</span>Data model</h2>
+    <p>Concrete numbers from <code>data/jobs.db</code> as of today:</p>
+
+    <table>
+      <thead>
+        <tr><th>Entity</th><th>Table</th><th>Rows</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Job</td><td><code>opportunities</code></td><td class="num">88,125</td><td>All <code>is_active=1</code>. URL is the unique key.</td></tr>
+        <tr><td>ATS board</td><td><code>company_boards</code></td><td class="num">1,667</td><td>Per <code>(company, ats_platform, slug)</code>.</td></tr>
+        <tr><td>Company</td><td>(no dedicated table)</td><td class="num">~4,230</td><td>Stored inline as <code>opportunities.company</code>. Honest gap — I'd normalize this.</td></tr>
+        <tr><td>User experience</td><td><code>user_experiences</code></td><td class="num">—</td><td>Per-operator JSON-in-text. Source of truth for skill mapping.</td></tr>
+        <tr><td>User skill state</td><td><code>user_skill_state</code></td><td class="num">—</td><td><code>(user_id, node_id, depth 0–100, confidence, evidence)</code>. Computed from the mapper.</td></tr>
+        <tr><td>Skill graph node</td><td><code>capability_nodes</code></td><td class="num">186</td><td>Two-level taxonomy (L0 cluster, L1 sub).</td></tr>
+        <tr><td>Skill graph edge</td><td><code>capability_edges</code></td><td class="num">337</td><td>Types: composition, dependency, transfer (weight 0.3–0.8).</td></tr>
+        <tr><td>Evaluation</td><td><code>evaluation_pipeline</code></td><td class="num">183,592</td><td>Scored (user, opportunity) pairs across the funnel — new, applied, passed, interviewing.</td></tr>
+        <tr><td>Activity event</td><td><code>opportunity_activity</code></td><td class="num">284,360</td><td>Deduped on <code>event_key</code> (deterministic hash).</td></tr>
+        <tr><td>Slug probe cache</td><td><code>slug_validation_log</code></td><td class="num">31,000</td><td>95.9% not_found, 4.1% valid. TTL 30d on negatives.</td></tr>
+        <tr><td>API call ledger</td><td><code>api_usage</code></td><td class="num">—</td><td>Tokens + USD cost per call, function-typed.</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Relationships.</strong> <code>user × opportunity → evaluation_pipeline</code> is the main join. <code>opportunity × node → opportunity_skill_requirements</code>; <code>user × node → user_skill_state</code>. No vector store — the "vector" is the user's skill state row set, intersected with the job's requirement row set. Pure relational.</p>
+  </section>
+
+  <section id="ingestion">
+    <h2><span class="num">04</span>Ingestion layer</h2>
+    <p class="lead">Eight ATS platforms wired (four populated), plus non-ATS sources, normalized to a uniform job dict.</p>
+
+    <p><strong>Sources, populated today:</strong></p>
+    <ul>
+      <li>Greenhouse — 824 boards (~49%)</li>
+      <li>Ashby — 590 boards (~35%)</li>
+      <li>Lever — 188 boards (~11%)</li>
+      <li>SmartRecruiters — 65 boards (~4%)</li>
+    </ul>
+
+    <p><strong>Wired but unpopulated:</strong> Workday, Teamtailor, BambooHR, iCIMS — code paths exist via <code>scraper_module</code> dispatch, registry rows = 0.</p>
+
+    <p class="honest">Supported but not at scale yet. The ingestion code is production-ready for those four; what's missing is the company-discovery sweep populating the registry.</p>
+
+    <p><strong>Non-ATS sources:</strong> HN, Jobicy, Gmail (LinkedIn / Distill / Notify alerts), browser extension paste, manual <code>/api/add-opportunity</code>.</p>
+
+    <p><strong>Schedule</strong> (<code>scripts/run_continuous.py</code>):</p>
+    <ul>
+      <li>Email ingestion — every 30 min</li>
+      <li>ATS API polling — 6am + 6pm daily</li>
+      <li>Discovery (HN, Jobicy, raw boards) — 6am daily</li>
+      <li>Company-discovery sweep (find new ATS instances) — Sunday 6am weekly</li>
+    </ul>
+
+    <p><strong>Throughput.</strong> ~300–1,000 jobs/day baseline, peak 1,540 on the heaviest day in the last 14.</p>
+
+    <p><strong>Normalization.</strong> Each ATS client maps its native payload to a fixed dict: <code>{url, title, company, jd_text, ats_type, ats_job_id, location, apply_url, salary_min/max}</code>. Dispatch happens in <code>scripts/run_ats.py</code> keyed on <code>scraper_module</code>. Greenhouse and Ashby return clean JSON; Workday needs <code>{wd, site}</code> params extracted from the URL; iCIMS branches on <code>portal_type</code> (jibe vs classic). The unified dict is platform-agnostic by the time it hits the upsert.</p>
+
+    <p><strong>Dedup.</strong> Two layers: (1) <code>INSERT OR IGNORE</code> on <code>url UNIQUE</code> handles same-source repeats; (2) <code>event_key</code> deterministic hash dedupes activity rows. Fuzzy cross-source dedup (same job from Greenhouse + manual paste, different URLs) runs offline — that's a known weakness; backups <code>pre-dedup-backup</code> and <code>pre-event-key-backfill</code> mark the last two manual cleanups.</p>
+
+    <p><strong>Error handling.</strong> <code>scraper.py</code> does 3 retries with exponential backoff on 5xx/403, per-domain 1.5s throttle, ETag/304 conditional GETs on Greenhouse. 429s aren't in the retry set — that's a real bug I'd own up to. Greenhouse uses ETags; the other three don't, so they re-fetch the world daily.</p>
+  </section>
+
+  <section id="enrichment">
+    <h2><span class="num">05</span>Enrichment + AI layer</h2>
+    <p class="lead">Deterministic-first is the rule. Anywhere I can extract with regex, fuzzy match, or rules, I do — LLMs only on the residual.</p>
+
+    <table>
+      <thead>
+        <tr><th>Stage</th><th>Approach</th><th>Model</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Slug validation</td><td>HTTP probe + cache</td><td>None</td></tr>
+        <tr><td>Domain backfill</td><td>WHOIS / DNS</td><td>None</td></tr>
+        <tr><td>Location parsing</td><td>Rule-based</td><td>None</td></tr>
+        <tr><td>L1/L2 role taxonomy</td><td>Rule-based with LLM fallback</td><td>Haiku 4.5 on residual</td></tr>
+        <tr><td>Salary extraction</td><td>Regex first, LLM fallback</td><td>Haiku 4.5</td></tr>
+        <tr><td>Job → graph nodes</td><td>4-stage hybrid (~80% deterministic)</td><td>Haiku 4.5 on ~20%</td></tr>
+        <tr><td>User → graph nodes</td><td>LLM, one-shot per user</td><td>Sonnet 4.5</td></tr>
+        <tr><td>Pairwise scoring</td><td>Pure math</td><td>—</td></tr>
+        <tr><td>Resume tailoring</td><td>LLM, one-shot per pair</td><td>Sonnet 4.5</td></tr>
+        <tr><td>Per-job dimension scoring</td><td>LLM, prompt-cached</td><td>Haiku 4.5</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Models.</strong> Sonnet 4.5 for quality-sensitive (resume, user mapping), Haiku 4.5 for bulk (scoring, classification, extraction). Prompt caching is on for both (<code>cache_control: ephemeral</code>) — quoting ~90% input-token discount on cached prefixes from Anthropic's pricing.</p>
+
+    <p><strong>Batching.</strong> Today: per-job synchronous on ingest. Aspirational: move scoring to the Anthropic Batch API for 50% cost off. Currently nothing is batched.</p>
+
+    <p class="honest">Batch isn't wired yet. Easiest win on the roadmap — daily LLM spend at current operator load is already under $1, so cost pressure hasn't forced the optimization. The 50% Batch API discount kicks in immediately when load grows.</p>
+
+    <p><strong>Cost per unit</strong> (derived from prompt sizes; would verify against <code>api_usage</code> ledger):</p>
+    <ul>
+      <li>Map 1 user (Sonnet, 7K input + 2.5K output) — <strong>$0.03</strong></li>
+      <li>Map 1 job (mostly deterministic, ~20% hits Haiku at 3K+1K) — <strong>$0.001</strong></li>
+      <li>Score 1 (user, job) — <strong>$0</strong>, pure math</li>
+      <li>Tailor 1 resume (Sonnet, cached system prompt, 8K output) — <strong>$0.05</strong></li>
+      <li>Per-job evaluation_pipeline scoring (Haiku, prompt-cached) — <strong>~$0.005</strong></li>
+    </ul>
+  </section>
+
+  <section id="ranking">
+    <h2><span class="num">06</span>Ranking architecture</h2>
+    <p class="lead">The core insight: pairwise <code>(user, job)</code> scoring with an LLM is the obvious approach and the wrong one. It's <code>O(users × jobs)</code> LLM calls, unaffordable at multi-user scale. I decompose the problem into <em>map-once, score-forever</em>.</p>
+
+    <p><strong>Step 1 — Seed the graph (one-time, system-wide).</strong> <code>seed_knowledge_graph()</code> takes the top 50 JDs, runs Sonnet twice (nodes pass + edges pass), produces the 186 nodes / 337 edges that exist today. Two-level hierarchy (L0 cluster, L1 sub-competency). Edge types: <em>composition</em> (child→parent), <em>dependency</em> (A requires B), <em>transfer</em> (A partially advances B with weight 0.3–0.8). Cost: ~$1–2 total, paid once.</p>
+
+    <p><strong>Step 2 — Map the user (once per user, on resume change).</strong> <code>map_entity_actor()</code>. Sonnet call: takes the resume + profile + the 186-node taxonomy, returns <code>[{node_id, depth 0–100, confidence 0–1, evidence}]</code>. ~80–150 nodes lit per user. Then <code>propagate_skills()</code> runs pure-math edge traversal to infer adjacent skills — propagation at map time, not score time, caches the inference.</p>
+
+    <p><strong>Step 3 — Map the job (once per job, on ingest).</strong> <code>map_opportunity()</code>. Hybrid 4-stage: rules + fuzzy match + dictionary + LLM-on-residual. Output: <code>[{node_id, required_depth, is_critical, differentiation_power}]</code>. ~15–30 nodes per job. ~80% deterministic, so most jobs cost &lt;$0.001.</p>
+
+    <p><strong>Step 4 — Score (every query, pure math).</strong> <code>compute_capability_fit()</code>. For each required node: <code>node_score = min(user_depth / required_depth, 1.0)</code>, weighted by <code>(type multiplier × differentiation power × IDF rarity)</code>. Domain-critical-non-transferable gets 3× weight, gated by user confidence. Coverage penalty if &lt;50% of critical nodes are met. Final scaled to 1–10. Zero LLM calls.</p>
+
+    <p><strong>Cost economics — concrete dollars.</strong> Take 1,000 users × 5,000 jobs = 5M scorings.</p>
+
+    <div class="cost-grid">
+      <div class="cost-cell">
+        <div class="cost-label">Brute force</div>
+        <p class="cost-approach">Haiku per pair</p>
+        <p class="cost-detail">5,000,000 LLM calls. The obvious approach. Quality also worse — no shared vocabulary across calls.</p>
+        <p class="cost-value">~$25K — $50K</p>
+      </div>
+      <div class="cost-cell">
+        <div class="cost-label">Graph approach</div>
+        <p class="cost-approach"><em>Map once, math forever</em></p>
+        <p class="cost-detail">1,000 user maps + ~1,000 job-LLM-residuals + seed. Same ontology for every user/job — scores comparable.</p>
+        <p class="cost-value">~$40 — <em>$250</em></p>
+      </div>
+    </div>
+
+    <p>That's a <strong>~250×–1,000× delta</strong>. The exact figure I'd verify by querying <code>api_usage</code> — that ledger has real token counts per call. Order of magnitude is what matters: it's the difference between an architecture that can't afford to grow and one whose unit economics hold at platform scale.</p>
+
+    <p>The deeper point under probing: brute-force pairwise is also <em>worse quality</em>, because the LLM has no shared vocabulary across calls. The graph is a normalized representation — same ontology for every user, every job — which is what makes the scores comparable.</p>
+
+    <p class="honest">Today's <code>evaluation_pipeline</code> (the 183K rows) is computed by a separate Haiku-per-job dimensional scorer (<code>score_opportunity_fast()</code>). The graph capability score is a second signal feeding the resume tailoring pipeline. I'm in the middle of wiring graph fit into the primary ranking — both signals exist; the graph is feeding resume first, the primary feed scoring is the legacy Haiku-dimensional path.</p>
+  </section>
+
+  <section id="operations">
+    <h2><span class="num">07</span>Operations</h2>
+    <p class="lead">Storage, indexes, observability, failure modes — what's running, what's instrumented, what catches the breaks.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Storage</h3>
+    <p>SQLite, single file (<code>data/jobs.db</code>). The choice is defensible at the system's current load surface. Multi-process write contention is solved by WAL mode plus the activity table's <code>event_key</code> dedup. 88K jobs and 183K evaluations sits well under SQLite's comfortable analytical ceiling. Backup is <code>cp</code>. Migration is a script. The simplicity is the feature — until the load profile changes (covered in §8).</p>
+    <p>No vector store, no Redis. The "vector" is <code>user_skill_state</code> rows joined against <code>opportunity_skill_requirements</code> rows — relational and indexed. Caching is in-process: <code>_corpus_rarity_cache</code> for IDF, prompt cache (Anthropic-side) for system prompts.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Hot indexes</h3>
+    <ul>
+      <li><code>opportunities(url)</code> UNIQUE — drives upsert dedup, every ingest hits this.</li>
+      <li><code>opportunities(is_active, created_at DESC)</code> — drives the feed query.</li>
+      <li><code>evaluation_pipeline(user_id, status, adjusted_score DESC)</code> — drives ranked-feed-by-stage.</li>
+      <li><code>opportunity_activity(event_key)</code> UNIQUE — drives activity dedup.</li>
+      <li><code>slug_validation_log(slug, validated_at)</code> — drives the 30-day TTL on negative cache.</li>
+    </ul>
+    <p>Heavy read, light write. Feed queries are read-only joins; ingest is the only writer pre-enrichment. Enrichment is the second writer (async, idempotent). At 10× users, the queue worker pool becomes the dominant writer and contention forces the Postgres migration.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Observability</h3>
+    <p>The strongest piece is the <code>api_usage</code> table — every LLM call logged with model, function type, input/output/cache tokens, computed USD cost, batch flag, success flag. <code>get_api_usage_summary()</code> gives 30d/7d/daily breakdowns by function and model. I can answer "how much did the system spend on resume generation last week" with a SQL query.</p>
+    <p>Beyond that: module-level Python logging across ~15 files. <code>log_activity()</code> persists user-visible events with <code>event_key</code> dedup. <code>pipeline_health()</code> computes a 0–100 user-pipeline health score (applied/interviewing/offer counts, conversion rates, stale apps &gt;7 days).</p>
+    <p class="honest"><code>/health</code> returns hardcoded <code>{status: ok, version}</code> — not a real health check. No central log aggregation, no metrics dashboards, no anomaly detection, no cost circuit breakers. Spend is tracked, not enforced. All on the list.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Failure modes</h3>
+    <table>
+      <thead>
+        <tr><th>Failure</th><th>What's in place</th><th>What's aspirational</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Scraper rate limit (429)</td><td>Per-domain throttle, exponential backoff on 5xx/403</td><td>429 itself isn't in the retry set</td></tr>
+        <tr><td>ATS schema drift</td><td>Nothing. Fixed key set drops new fields silently</td><td>Schema validation + alert on unknown keys</td></tr>
+        <tr><td>Slug 404 cached</td><td>30d TTL on negatives (recently fixed from infinite)</td><td>Re-probe on first user signal too</td></tr>
+        <tr><td>Cross-source dedup</td><td>URL-uniqueness only catches exact matches</td><td>Fuzzy (title, company) dedup at insert time</td></tr>
+        <tr><td>LLM hallucination</td><td><code>_repair_truncated_json</code> + markdown fence stripping</td><td>JSON-schema validation, Outlines/instructor</td></tr>
+        <tr><td>LLM 429</td><td>Caught and re-raised, no automatic retry</td><td>Exponential backoff on Anthropic 429</td></tr>
+        <tr><td>Cost overruns</td><td>Tracked in <code>api_usage</code>, queryable</td><td>Per-user/per-day budget caps with circuit breaker</td></tr>
+        <tr><td>Partial pipeline failure</td><td>Each stage idempotent — re-run picks up</td><td>Persistent failure queue; no <code>scraping_errors</code> table</td></tr>
+        <tr><td>User skips remap</td><td><code>remap_user_if_needed(force=True)</code> manual fix</td><td>Trigger remap on <code>user_experiences</code> write</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="forward">
+    <h2><span class="num">08</span>What I'd build differently, and where it breaks</h2>
+    <p class="lead">The gap between the current operator-scale system and a team-supported production deployment, plus the architectural ceilings that surface as load grows.</p>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">What I'd build differently with a real engineering team</h3>
+    <p>This is the section to lean into honesty on, because the senior leader will ask.</p>
+    <ul>
+      <li><strong>Tests.</strong> 11 test files, none cover scoring, knowledge graph, resume generation, or dedup logic. The graph scorer is the highest-stakes code in the system and has no test coverage. Property-based tests for <code>compute_capability_fit</code> and golden-output tests for the user/job mappers come first.</li>
+      <li><strong>CI.</strong> No GitHub Actions, no lint gate, no test gate on PR. Tests run by hand.</li>
+      <li><strong>Schema migrations.</strong> All <code>CREATE TABLE IF NOT EXISTS</code> plus ad-hoc backfill scripts. The <code>*.pre-dedup-backup</code> files in <code>data/</code> are evidence of manual migration moments. Alembic before another engineer touches the schema.</li>
+      <li><strong>Deterministic-vs-AI boundary.</strong> Current rule is "rules first, LLM on residual" but the heuristic isn't formalized. Risk: silent quality drift — an LLM confidently mis-mapping a job to nodes that look right but aren't. Offline eval against a golden set for both mappers.</li>
+      <li><strong>Single-process Python.</strong> Scoring path is fine. Ingest fan-out (30 concurrent ATS clients) is a ThreadPoolExecutor in one process. Production puts this behind a queue (SQS/Celery) so a crash in one ATS client doesn't take the run down.</li>
+    </ul>
+
+    <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Where it breaks at scale</h3>
+    <p>The architecture has two visible walls — both load-driven, both quantifiable, neither yet binding.</p>
+    <p><strong>First wall — concurrent writes to SQLite.</strong> The current single-writer model holds while ingest plus async enrichment is the only contention surface. Once a queue worker pool fans out the ingest path under sustained load, contention exceeds what WAL handles gracefully. Migration is straightforward — Postgres with the same schema, the application layer is already idempotent.</p>
+    <p><strong>Second wall — LLM-prompt size for user mapping when the graph crosses ~500 nodes.</strong> Sonnet's context window is generous, but cost-per-map scales linearly with node count and the prompt cache hit-rate degrades. Mitigation is hierarchical mapping (L0 cluster first, then L1 within matched clusters) to keep the per-call prompt under a token budget. Resume generation crosses a similar wall — at high-volume, batch-processing through the Anthropic Batch API for 50% off, plus prompt-prefix caching across the user's resume context (~$0.05 → ~$0.025 per resume).</p>
+    <p><strong>Long-tail: slug validation cache.</strong> 31K rows today, 95.9% <code>not_found</code>. Linear growth is the negative-cache pattern — at order-of-magnitude growth, the table becomes mostly noise. Bloom filter for the negative path bounds the cache size while preserving the fast-rejection behavior.</p>
+    <p>Both primary walls are visible from where the system sits today; neither is the gating concern. Observability and a job queue come first — the architectural changes follow load.</p>
+  </section>
+
+  <div class="closing">
+    <div class="closing-eyebrow">Closing argument</div>
+    <h2 class="closing-statement">Map-once, <em>score-forever</em>.</h2>
+    <p class="closing-body">The architecture exists to convert an <em>O(users × jobs)</em> LLM problem into an <em>O(users + jobs)</em> LLM problem plus pure math. Everything else is plumbing.</p>
+  </div>
+
+  <footer>
+    <span>Chris Kirilov · GTM Engineer + Founder · 2026</span>
+    <a class="back" href="om-case-study.html">← Back to OM case study</a>
+  </footer>
+
+</article>
+
+</body>
+</html>
