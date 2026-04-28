@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/cisco-case-study.html", "destination": "/cisco-case-study", "permanent": true },
+    { "source": "/mesh-ai-case-study.html", "destination": "/mesh-ai-case-study", "permanent": true },
+    { "source": "/om-case-study.html", "destination": "/om-case-study", "permanent": true },
+    { "source": "/om-system-design.html", "destination": "/om-system-design", "permanent": true }
+  ]
+}
