@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OM — System Design · Chris Kirilov</title>
-<meta name="description" content="Technical walkthrough of OM's architecture: 88K jobs, 184K evaluations, 186-node knowledge graph. Map-once, score-forever — converting an O(users × jobs) LLM problem into pure math.">
+<meta name="description" content="Technical walkthrough of OM's architecture: 88K jobs, 184K evaluations, 186-node skill graph. Map-once, score-forever — converting an O(users × jobs) LLM problem into pure math.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -589,7 +589,7 @@ footer .back:hover {
     <h2><span class="num">01</span>Problem statement</h2>
     <p class="lead">OM compresses the job-search loop for power-users — every relevant new posting on the open web, scored against a user's actual experience, in a feed they can act on in under five minutes a day.</p>
     <p>Same engine doubles as account-level prospecting infrastructure: once you can rank "is this job a fit for this person," you can rank "is this account a fit for our ICP." The architecture is the same; the entities swap.</p>
-    <p><strong>Operating cadence.</strong> ~5,000 (operator, opportunity) evaluations per daily scoring cycle. 12-hour median latency from a posting going live on its source ATS to appearing in the feed. ~600 LLM calls per day at sub-$1 daily inference cost. 88K active jobs, 184K cumulative evaluations, 800+ source boards across 8 ATS platforms. The architectural decisions in the rest of this document are calibrated against that load profile — and against the load profile two orders of magnitude beyond it (covered in §8).</p>
+    <p><strong>Operating cadence.</strong> ~5,000 (operator, opportunity) evaluations per daily scoring cycle. 12-hour median latency from a posting going live on its source ATS to appearing in the feed. ~600 LLM calls per day at sub-$1 daily inference cost. 88K active jobs, 184K cumulative evaluations, 1,667 source boards across 4 production ATS platforms (4 more wired pending population). The architectural decisions in the rest of this document are calibrated against that load profile — and against the load profile two orders of magnitude beyond it (covered in §8).</p>
   </section>
 
   <section id="architecture">
@@ -635,7 +635,7 @@ footer .back:hover {
     <p>Two design commitments worth defending:</p>
     <ul>
       <li><strong>Registry-driven, not crawler-driven.</strong> <code>company_boards</code> is the canonical source of truth for what gets scraped. Every scrape decision is a row, not a hard-coded list.</li>
-      <li><strong>Map-once, score-forever.</strong> The expensive LLM work — mapping a user or a job to a skill graph — happens once at ingest. Scoring is deterministic math at query time. This is the cost story I'll defend in §6.</li>
+      <li><strong>Map-once, score-forever.</strong> The expensive LLM work — mapping a user or a job to a skill graph — happens once at ingest. Scoring is deterministic math at query time. Cost economics broken out in §6.</li>
     </ul>
 
     <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">API contract</h3>
@@ -717,11 +717,11 @@ footer .back:hover {
 
     <p><strong>Throughput.</strong> ~300–1,000 jobs/day baseline, peak 1,540 on the heaviest day in the last 14.</p>
 
-    <p><strong>Normalization.</strong> Each ATS client maps its native payload to a fixed dict: <code>{url, title, company, jd_text, ats_type, ats_job_id, location, apply_url, salary_min/max}</code>. Dispatch happens in <code>scripts/run_ats.py</code> keyed on <code>scraper_module</code>. Greenhouse and Ashby return clean JSON; Workday needs <code>{wd, site}</code> params extracted from the URL; iCIMS branches on <code>portal_type</code> (jibe vs classic). The unified dict is platform-agnostic by the time it hits the upsert.</p>
+    <p><strong>Normalization.</strong> Each ATS client maps its native payload to a fixed dict: <code>{url, title, company, jd_text, ats_type, ats_job_id, location, apply_url, salary_min/max}</code>. Dispatch happens in <code>scripts/run_ats.py</code> keyed on <code>scraper_module</code>. Greenhouse and Ashby return clean JSON; Workday needs <code>{wd, site}</code> params extracted from the URL; iCIMS branches on <code>portal_type</code> (jibe vs classic). The unified dict is platform-agnostic by the time it hits the insert.</p>
 
     <p><strong>Dedup.</strong> Two layers: (1) <code>INSERT OR IGNORE</code> on <code>url UNIQUE</code> handles same-source repeats; (2) <code>event_key</code> deterministic hash dedupes activity rows. Fuzzy cross-source dedup (same job from Greenhouse + manual paste, different URLs) runs offline — that's a known weakness; backups <code>pre-dedup-backup</code> and <code>pre-event-key-backfill</code> mark the last two manual cleanups.</p>
 
-    <p><strong>Error handling.</strong> <code>scraper.py</code> does 3 retries with exponential backoff on 5xx/403, per-domain 1.5s throttle, ETag/304 conditional GETs on Greenhouse. 429s aren't in the retry set — that's a real bug I'd own up to. Greenhouse uses ETags; the other three don't, so they re-fetch the world daily.</p>
+    <p><strong>Error handling.</strong> <code>scraper.py</code> does 3 retries with exponential backoff, per-domain 1.5s throttle, ETag/304 conditional GETs on Greenhouse. The retry set is the most-criticized piece: 429 isn't in it (a real bug — that's the actual rate-limit code), and 403 currently is in it (also wrong — 403 is the server understanding and refusing, retrying just burns calls). Conditional-GET coverage is Greenhouse-only because that's where I implemented it; the other three platforms support similar headers and re-fetch the world daily until I extend the client.</p>
   </section>
 
   <section id="enrichment">
@@ -793,7 +793,7 @@ footer .back:hover {
 
     <p>That's a <strong>~250×–1,000× delta</strong>. The exact figure I'd verify by querying <code>api_usage</code> — that ledger has real token counts per call. Order of magnitude is what matters: it's the difference between an architecture that can't afford to grow and one whose unit economics hold at platform scale.</p>
 
-    <p>The deeper point under probing: brute-force pairwise is also <em>worse quality</em>, because the LLM has no shared vocabulary across calls. The graph is a normalized representation — same ontology for every user, every job — which is what makes the scores comparable.</p>
+    <p>The deeper point: brute-force pairwise is also <em>worse quality</em>, because the LLM has no shared vocabulary across calls. The graph is a normalized representation — same ontology for every user, every job — which is what makes the scores comparable.</p>
 
     <p class="honest">Today's <code>evaluation_pipeline</code> (the 183K rows) is computed by a separate Haiku-per-job dimensional scorer (<code>score_opportunity_fast()</code>). The graph capability score is a second signal feeding the resume tailoring pipeline. I'm in the middle of wiring graph fit into the primary ranking — both signals exist; the graph is feeding resume first, the primary feed scoring is the legacy Haiku-dimensional path.</p>
   </section>
@@ -803,12 +803,12 @@ footer .back:hover {
     <p class="lead">Storage, indexes, observability, failure modes — what's running, what's instrumented, what catches the breaks.</p>
 
     <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Storage</h3>
-    <p>SQLite, single file (<code>data/jobs.db</code>). The choice is defensible at the system's current load surface. Multi-process write contention is solved by WAL mode plus the activity table's <code>event_key</code> dedup. 88K jobs and 183K evaluations sits well under SQLite's comfortable analytical ceiling. Backup is <code>cp</code>. Migration is a script. The simplicity is the feature — until the load profile changes (covered in §8).</p>
+    <p>SQLite, single file (<code>data/jobs.db</code>). The choice is defensible at the system's current load surface. WAL mode keeps reads non-blocking during writes; SQLite still serializes writers, but the workload has only one ingest writer plus one idempotent enrichment writer — well under the single-writer ceiling. 88K jobs and 184K evaluations sits well under SQLite's comfortable analytical ceiling. Backup is <code>cp</code>. Migration is a script. The simplicity is the feature — until the load profile changes (covered in §8).</p>
     <p>No vector store, no Redis. The "vector" is <code>user_skill_state</code> rows joined against <code>opportunity_skill_requirements</code> rows — relational and indexed. Caching is in-process: <code>_corpus_rarity_cache</code> for IDF, prompt cache (Anthropic-side) for system prompts.</p>
 
     <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Hot indexes</h3>
     <ul>
-      <li><code>opportunities(url)</code> UNIQUE — drives upsert dedup, every ingest hits this.</li>
+      <li><code>opportunities(url)</code> UNIQUE — drives the INSERT OR IGNORE dedup, every ingest hits this.</li>
       <li><code>opportunities(is_active, created_at DESC)</code> — drives the feed query.</li>
       <li><code>evaluation_pipeline(user_id, status, adjusted_score DESC)</code> — drives ranked-feed-by-stage.</li>
       <li><code>opportunity_activity(event_key)</code> UNIQUE — drives activity dedup.</li>
@@ -824,10 +824,10 @@ footer .back:hover {
     <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 36px 0 14px; color: var(--ink); letter-spacing: -0.01em;">Failure modes</h3>
     <table>
       <thead>
-        <tr><th>Failure</th><th>What's in place</th><th>What's aspirational</th></tr>
+        <tr><th>Failure</th><th>What's in place</th><th>What's planned</th></tr>
       </thead>
       <tbody>
-        <tr><td>Scraper rate limit (429)</td><td>Per-domain throttle, exponential backoff on 5xx/403</td><td>429 itself isn't in the retry set</td></tr>
+        <tr><td>Scraper rate limit (429)</td><td>Per-domain throttle, exponential backoff on 5xx (and 403, also wrong)</td><td>Add 429 to the retry set; drop 403 (server-refused, not transient)</td></tr>
         <tr><td>ATS schema drift</td><td>Nothing. Fixed key set drops new fields silently</td><td>Schema validation + alert on unknown keys</td></tr>
         <tr><td>Slug 404 cached</td><td>30d TTL on negatives (recently fixed from infinite)</td><td>Re-probe on first user signal too</td></tr>
         <tr><td>Cross-source dedup</td><td>URL-uniqueness only catches exact matches</td><td>Fuzzy (title, company) dedup at insert time</td></tr>
@@ -845,9 +845,8 @@ footer .back:hover {
     <p class="lead">The gap between the current operator-scale system and a team-supported production deployment, plus the architectural ceilings that surface as load grows.</p>
 
     <h3 style="font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 28px 0 14px; color: var(--ink); letter-spacing: -0.01em;">What I'd build differently with a real engineering team</h3>
-    <p>This is the section to lean into honesty on, because the senior leader will ask.</p>
     <ul>
-      <li><strong>Tests.</strong> 11 test files, none cover scoring, knowledge graph, resume generation, or dedup logic. The graph scorer is the highest-stakes code in the system and has no test coverage. Property-based tests for <code>compute_capability_fit</code> and golden-output tests for the user/job mappers come first.</li>
+      <li><strong>Tests.</strong> 11 test files, none cover scoring, skill graph, resume generation, or dedup logic. The graph scorer is the highest-stakes code in the system and has no test coverage. Property-based tests for <code>compute_capability_fit</code> and golden-output tests for the user/job mappers come first.</li>
       <li><strong>CI.</strong> No GitHub Actions, no lint gate, no test gate on PR. Tests run by hand.</li>
       <li><strong>Schema migrations.</strong> All <code>CREATE TABLE IF NOT EXISTS</code> plus ad-hoc backfill scripts. The <code>*.pre-dedup-backup</code> files in <code>data/</code> are evidence of manual migration moments. Alembic before another engineer touches the schema.</li>
       <li><strong>Deterministic-vs-AI boundary.</strong> Current rule is "rules first, LLM on residual" but the heuristic isn't formalized. Risk: silent quality drift — an LLM confidently mis-mapping a job to nodes that look right but aren't. Offline eval against a golden set for both mappers.</li>

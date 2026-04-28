@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OM — The signal layer that should exist · Chris Kirilov</title>
-<meta name="description" content="Case study: building the GTM intelligence platform every AI-native company is currently rebuilding in-house, badly. 800+ sources, 170-node knowledge graph, sub-$1/day inference. Solo.">
+<meta name="description" content="Case study: building the GTM intelligence platform every AI-native company is currently rebuilding in-house, badly. 88K jobs from 1,667 source boards, 186-node skill graph, sub-$1/day LLM spend. Solo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -525,14 +525,14 @@ footer a.contact:hover { border-color: var(--accent); }
   <div class="title-block">
     <div class="eyebrow">OM · San Francisco</div>
     <h1>The signal layer <em>that should exist</em></h1>
-    <p class="subtitle">Building the GTM intelligence platform every AI-native company is currently rebuilding in-house, badly. 800+ sources, 170-node knowledge graph, sub-$1/day inference. Solo.</p>
+    <p class="subtitle">Building the GTM intelligence platform every AI-native company is currently rebuilding in-house, badly. 88K jobs from 1,667 source boards, 186-node skill graph, sub-$1/day LLM spend. Solo.</p>
     <p style="margin-top: 20px; font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-soft);">For the engineering walkthrough — read the <a class="inline" href="../om-system-design">system design notes</a>.</p>
   </div>
 
   <figure class="hero">
     <svg width="100%" viewBox="0 0 680 440" role="img" xmlns="http://www.w3.org/2000/svg">
-      <title>Knowledge graph</title>
-      <desc>Abstract composition: a constellation of connected nodes forming a sparse network on a deep indigo background, with two luminous focal nodes at center anchoring the structure, evoking a knowledge graph extracting signal from distributed sources.</desc>
+      <title>Skill graph</title>
+      <desc>Abstract composition: a constellation of connected nodes forming a sparse network on a deep indigo background, with two luminous focal nodes at center anchoring the structure, evoking a skill graph extracting signal from distributed sources.</desc>
       <rect width="680" height="440" rx="12" fill="#0e0a24"/>
       <circle cx="80" cy="80" r="1" fill="#5b3d8a" opacity="0.45"/>
       <circle cx="140" cy="380" r="1" fill="#5b3d8a" opacity="0.45"/>
@@ -617,19 +617,19 @@ footer a.contact:hover { border-color: var(--accent); }
     <ol class="build-list">
       <li>
         <strong>Multi-source ingestion pipeline</strong>
-        800+ sources, 150+ signals processed daily. Automated normalization across heterogeneous data shapes — Greenhouse, Lever, Ashby, plus internal scrapers and external enrichment.
+        1,667 source boards across 4 production ATS platforms (Greenhouse, Ashby, Lever, SmartRecruiters); 4 more wired and pending population. 300–1,000 jobs/day baseline. Each platform's payload normalized to a uniform job dict at the dispatch boundary.
       </li>
       <li>
-        <strong>170-node knowledge graph</strong>
-        Atom ontology with automated skill inference, career mapping, and gap analysis. Built to handle entity resolution, semantic relationships, and dynamic concept extension as new domains enter the graph.
+        <strong>186-node skill graph</strong>
+        Hand-curated capability ontology — two-level taxonomy (L0 cluster, L1 sub-competency), 337 edges across composition, dependency, and transfer relations. Designed for explainability and zero query-time LLM cost; ceiling at ~10K nodes before hierarchical mapping becomes mandatory.
       </li>
       <li>
-        <strong>Two-pass AI scoring engine</strong>
-        Atom ontology, three-dimension scoring, L2 subcategory taxonomy, GTM noise filtering. 88% match accuracy, 95% precision on top recommendations, sub-second latency at query time.
+        <strong>Map-once, score-forever scoring</strong>
+        Five-dimension LLM evaluation per job (role, capability, org, domain, location) at ingest; deterministic graph cosine at query time. Architecture converts an O(users × jobs) LLM problem into O(users + jobs) plus pure math — that's the cost story underneath.
       </li>
       <li>
         <strong>Cost-engineered inference</strong>
-        Sub-$1/day operational cost for scoring 57,000+ opportunities across 800+ sources, via Anthropic Batch API. Cost was an architectural choice from day one, not an afterthought — without it, the unit economics don't work.
+        ~600 LLM calls/day at sub-$1 daily spend; ~5,000 daily (user, job) evaluations across the active pool. Cost was an architectural choice from day one — the map-once-score-forever decomposition is what makes unit economics hold past the toy-project ceiling. Anthropic Batch API (50% off) is the next-step lever as load scales.
       </li>
       <li>
         <strong>End-to-end product surface</strong>
@@ -757,7 +757,7 @@ footer a.contact:hover { border-color: var(--accent); }
       </li>
       <li>
         <span class="arch-name">Scraper / dispatch</span>
-        <p class="arch-desc"><code>scripts/run_ats.py</code> dispatches per <code>scraper_module</code>: NULL routes to the shared <code>ats_client</code> for the four API ATSes; everything else routes to dedicated Workday, Teamtailor, BambooHR, or iCIMS clients. ThreadPool concurrency, ~1.5s per-domain throttle, three-retry exponential backoff on 5xx and 403. ETag/304 caching only on Greenhouse.</p>
+        <p class="arch-desc"><code>scripts/run_ats.py</code> dispatches per <code>scraper_module</code>: NULL routes to the shared <code>ats_client</code> for the four API ATSes; everything else routes to dedicated Workday, Teamtailor, BambooHR, or iCIMS clients. ThreadPool concurrency, ~1.5s per-domain throttle, three-retry exponential backoff on 5xx and timeouts. ETag/304 conditional GETs implemented on Greenhouse only — extending to the others is on the list.</p>
         <span class="fail">429s aren't in the retry set — Workday quotas silently drop boards. Non-Greenhouse refetches the world daily.</span>
       </li>
       <li>
@@ -767,28 +767,28 @@ footer a.contact:hover { border-color: var(--accent); }
       </li>
       <li>
         <span class="arch-name">SQL persistence</span>
-        <p class="arch-desc"><code>upsert_opportunity()</code> in <code>data/database.py</code>: INSERT OR IGNORE on <code>url</code> UNIQUE; activity table dedupes via deterministic <code>event_key</code>. Two backups in <code>data/</code> (<code>pre-dedup</code>, <code>pre-event-key-backfill</code>) mark the last two migrations.</p>
+        <p class="arch-desc">Insert path in <code>data/database.py</code>: <code>INSERT OR IGNORE</code> on <code>url</code> UNIQUE — same URL is a no-op on re-scrape. Field updates to existing rows run through enrichment writers keyed by <code>opportunity_id</code>. Activity table dedupes via deterministic <code>event_key</code>. Two backup files in <code>data/</code> (<code>pre-dedup</code>, <code>pre-event-key-backfill</code>) mark manual migrations; Alembic before another engineer touches the schema.</p>
         <span class="fail">same job comes from two sources — Greenhouse plus manual paste — different URL strings, two rows. Fuzzy dedup runs offline.</span>
       </li>
       <li>
         <span class="arch-name">Enrichment</span>
-        <p class="arch-desc">Async after upsert: company domain backfill, location parse, ATS-board discovery for the company, L1/L2 role classification, salary extraction. Slug result cached in <code>slug_validation_log</code>.</p>
-        <span class="fail">Claude is rate-limited and <code>needs_enrichment=1</code> rows back up; classification mislabels seniority — Staff capped at 6 by the gate.</span>
+        <p class="arch-desc">Async after insert: company domain backfill, location parse, ATS-board discovery for the company, L1/L2 role classification, salary extraction. Slug result cached in <code>slug_validation_log</code>.</p>
+        <span class="fail">Claude is rate-limited and <code>needs_enrichment=1</code> rows back up; LLM classification mislabels edge cases — Staff Engineer often caps at level 6.</span>
       </li>
       <li>
         <span class="arch-name">Ranking — graph-based</span>
-        <p class="arch-desc">Two stages. (a) Claude Haiku scores five dimensions — role_fit, capability_fit, org_quality, domain, location — into <code>evaluation_score</code>, prompt-cached. (b) Knowledge graph: <code>user_experiences</code> map to skill nodes via <code>remap_user_if_needed()</code> and propagate through edges; jobs map to the same node space; cosine similarity is the structural fit. Feed orders by <code>adjusted_score</code>.</p>
-        <span class="fail">user adds an experience but skips remap — graph drifts, user looks underqualified. Prompt cache keyed by system prompt creates multi-user calibration risk.</span>
+        <p class="arch-desc">Two stages. (a) Claude Haiku scores five dimensions — role_fit, capability_fit, org_quality, domain, location — into <code>evaluation_score</code>, prompt-cached. (b) Skill graph: <code>user_experiences</code> map to skill nodes via <code>remap_user_if_needed()</code> and propagate through edges; jobs map to the same node space; cosine similarity is the structural fit. Feed orders by <code>adjusted_score</code>.</p>
+        <span class="fail">user adds an experience but skips remap — graph drifts, user looks underqualified. <code>remap_user_if_needed(force=True)</code> is the manual fix; trigger-on-write is the planned correction.</span>
       </li>
       <li>
         <span class="arch-name">API</span>
         <p class="arch-desc">Flask in <code>web/app.py</code>, Bearer <code>DB_SYNC_API_KEY</code>. <code>/api/tasks/claude/board</code> (ranked feed grouped by stage), <code>/api/tasks/claude/triage</code> (AI focus, 30-min cache), <code>/api/tasks/claude/batch</code> (write ops, ≤50), <code>/api/add-opportunity</code> (ingest).</p>
-        <span class="fail">auth is per-route (<code>@login_required</code>), no central middleware — easy to ship a new route unauthenticated.</span>
+        <span class="fail">auth is per-route via decorators (Bearer on <code>/api/*</code>, <code>@login_required</code> on web routes), no central middleware — easy to ship a new route unauthenticated.</span>
       </li>
     </ol>
     <div class="tldr">
       <span class="label">One-liner</span>
-      Registry-driven scrape → unified upsert keyed by URL → enrich and classify → score twice (LLM dimensions × graph cosine) → serve ranked through Flask. Each hop has a silent-drop failure mode; the recurring theme is fixed schemas and cached negatives.
+      Registry-driven scrape → unified insert keyed by URL → enrich and classify → score twice (LLM dimensions × graph cosine) → serve ranked through Flask. Each hop has a silent-drop failure mode; the recurring theme is fixed schemas and cached negatives.
     </div>
     <p style="margin-top: 24px; font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--ink-soft);">For the full technical walkthrough — data model, cost economics ($25K vs $250 at scale), failure modes, and the scale ceiling — read the <a class="inline" href="../om-system-design">OM system design notes</a>.</p>
   </section>
@@ -822,7 +822,7 @@ footer a.contact:hover { border-color: var(--accent); }
     <h2><span class="num">06</span>The pattern</h2>
     <p>Same operation, three scales. Find the broken signal layer, rebuild it as infrastructure, quantify what changes downstream.</p>
     <p>Cisco was the analyst seat — proved I find the leverage. Mesh-AI was the operator seat — proved I turn it into ARR. OM is the builder seat — the same diagnostic move applied to an entire category instead of a single company. The pattern doesn't change with scope. The leverage does.</p>
-    <p>OM is also the foundation of something larger. The thesis underneath OM — that signal infrastructure is the layer modern operations are missing — extends past GTM. That's the long arc. The short arc is what's already shipped: 800+ sources, 170 nodes, 57K opportunities scored, sub-$1 daily inference, ten paying pilots in sixty days, all built solo. The pattern works. The platform is alive. The thesis is no longer hypothetical.</p>
+    <p>OM is also the foundation of something larger. The thesis underneath OM — that signal infrastructure is the layer modern operations are missing — extends past GTM. That's the long arc. The short arc is what's already shipped: 88K jobs from 1,667 source boards, 186-node skill graph, 184K cumulative scorings, sub-$1 daily LLM spend, ten paying pilots in sixty days, all built solo. The pattern works. The platform is alive. The thesis is no longer hypothetical.</p>
   </section>
 
   <footer>
