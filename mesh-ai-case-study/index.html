@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cisco — The signal layer behind 1,000 reps · Chris Kirilov</title>
-<meta name="description" content="Case study: a self-serve analytics hub deployed across 47 countries, replacing a 12-hour report-compile loop and surfacing $10M+ in annual productivity at Cisco.">
+<title>Mesh-AI — How twelve dashboards did the selling · Chris Kirilov</title>
+<meta name="description" content="Case study: building analytics infrastructure as employee #13 that turned bespoke ML consulting into a scalable product, scaling Mesh-AI from $0 to $10M ARR in 12 months.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -365,141 +365,119 @@ footer a.contact:hover { border-color: var(--accent); }
 
   <header class="meta">
     <div class="meta-left">
-      <span class="case-num">Case study 01 / 03</span>
-      <span>2019 — 2020</span>
+      <span class="case-num">Case study 02 / 03</span>
+      <span>2022 — 2023</span>
     </div>
     <a href="https://chriskirilov.com">chriskirilov.com</a>
   </header>
 
   <div class="title-block">
-    <div class="eyebrow">Cisco · San Jose</div>
-    <h1>The signal layer behind <em>1,000 reps</em></h1>
-    <p class="subtitle">A self-serve analytics hub that replaced a 12-hour report-compile loop, deployed across 47 countries, and surfaced $10M+ in annual productivity.</p>
+    <div class="eyebrow">Mesh-AI · London</div>
+    <h1>How twelve dashboards <em>did the selling</em></h1>
+    <p class="subtitle">Building analytics infrastructure as employee #13 — turning bespoke ML consulting into a scalable product, and Mesh-AI from $0 to $10M ARR in 12 months.</p>
   </div>
 
   <figure class="hero">
     <svg width="100%" viewBox="0 0 680 440" role="img" xmlns="http://www.w3.org/2000/svg">
-      <title>Signal at scale</title>
-      <desc>Abstract composition: a luminous central pulse radiating concentric rings outward through a constellation of distributed nodes on a midnight navy field.</desc>
-      <rect width="680" height="440" rx="12" fill="#0a1628"/>
-      <circle cx="340" cy="220" r="80" fill="none" stroke="#1e4d8c" stroke-width="0.6" opacity="0.55"/>
-      <circle cx="340" cy="220" r="135" fill="none" stroke="#1e4d8c" stroke-width="0.6" opacity="0.42"/>
-      <circle cx="340" cy="220" r="195" fill="none" stroke="#1e4d8c" stroke-width="0.5" opacity="0.30"/>
-      <circle cx="340" cy="220" r="265" fill="none" stroke="#1e4d8c" stroke-width="0.5" opacity="0.18"/>
-      <circle cx="403" cy="250" r="2.5" fill="#7eb8f0" opacity="0.9"/>
-      <circle cx="335" cy="290" r="2" fill="#7eb8f0" opacity="0.85"/>
-      <circle cx="274" cy="244" r="2.5" fill="#7eb8f0" opacity="0.9"/>
-      <circle cx="283" cy="180" r="2" fill="#7eb8f0" opacity="0.8"/>
-      <circle cx="352" cy="151" r="2.5" fill="#7eb8f0" opacity="0.9"/>
-      <circle cx="406" cy="196" r="2" fill="#7eb8f0" opacity="0.85"/>
-      <circle cx="465" cy="240" r="2" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="430" cy="305" r="2.5" fill="#5da3e8" opacity="0.75"/>
-      <circle cx="370" cy="335" r="2" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="295" cy="335" r="2.5" fill="#5da3e8" opacity="0.75"/>
-      <circle cx="225" cy="285" r="2" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="208" cy="220" r="2" fill="#5da3e8" opacity="0.75"/>
-      <circle cx="225" cy="155" r="2.5" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="280" cy="105" r="2" fill="#5da3e8" opacity="0.75"/>
-      <circle cx="345" cy="90" r="2.5" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="415" cy="100" r="2" fill="#5da3e8" opacity="0.75"/>
-      <circle cx="465" cy="145" r="2.5" fill="#5da3e8" opacity="0.7"/>
-      <circle cx="540" cy="240" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="500" cy="335" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="430" cy="385" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="345" cy="395" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="240" cy="385" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="160" cy="320" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="125" cy="240" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="135" cy="155" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="190" cy="85" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="285" cy="50" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="385" cy="45" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <circle cx="475" cy="65" r="2.5" fill="#3a7fb8" opacity="0.6"/>
-      <circle cx="555" cy="135" r="2" fill="#3a7fb8" opacity="0.55"/>
-      <line x1="340" y1="220" x2="403" y2="250" stroke="#5da3e8" stroke-width="0.5" opacity="0.4"/>
-      <line x1="340" y1="220" x2="274" y2="244" stroke="#5da3e8" stroke-width="0.5" opacity="0.4"/>
-      <line x1="340" y1="220" x2="352" y2="151" stroke="#5da3e8" stroke-width="0.5" opacity="0.4"/>
-      <line x1="340" y1="220" x2="465" y2="145" stroke="#5da3e8" stroke-width="0.5" opacity="0.3"/>
-      <line x1="340" y1="220" x2="280" y2="105" stroke="#5da3e8" stroke-width="0.5" opacity="0.3"/>
-      <circle cx="340" cy="220" r="48" fill="#1e4d8c" opacity="0.35"/>
-      <circle cx="340" cy="220" r="32" fill="#3a7fd6" opacity="0.55"/>
-      <circle cx="340" cy="220" r="20" fill="#7eb8f0" opacity="0.9"/>
-      <circle cx="340" cy="220" r="11" fill="#fff5e0"/>
+      <title>Foundation to scale</title>
+      <desc>Abstract composition: layered horizontal strata in warm tones ascending from a dark plum base, with a single luminous vertical beam rising through, evoking infrastructure that scales upward from foundation.</desc>
+      <rect width="680" height="440" rx="12" fill="#1a0e1f"/>
+      <path d="M 0 440 L 0 360 Q 170 340 340 355 T 680 360 L 680 440 Z" fill="#3d1828"/>
+      <path d="M 0 360 Q 170 340 340 355 T 680 360 L 680 310 Q 510 295 340 305 T 0 310 Z" fill="#5e2238"/>
+      <path d="M 0 310 Q 170 295 340 305 T 680 310 L 680 260 Q 510 245 340 252 T 0 260 Z" fill="#84324a"/>
+      <path d="M 0 260 Q 170 245 340 252 T 680 260 L 680 215 Q 510 200 340 205 T 0 215 Z" fill="#a84a55"/>
+      <path d="M 0 215 Q 170 200 340 205 T 680 215 L 680 175 Q 510 162 340 167 T 0 175 Z" fill="#c8694c"/>
+      <path d="M 0 175 Q 170 162 340 167 T 680 175 L 680 145 Q 510 134 340 138 T 0 145 Z" fill="#e09060"/>
+      <path d="M 0 145 Q 170 134 340 138 T 680 145 L 680 128 Q 510 120 340 124 T 0 128 Z" fill="#f0b285" opacity="0.85"/>
+      <rect x="335" y="50" width="10" height="305" fill="#fae0c4" opacity="0.45"/>
+      <rect x="338" y="50" width="4" height="305" fill="#fff5e6"/>
+      <circle cx="340" cy="50" r="14" fill="#fff5e6" opacity="0.3"/>
+      <circle cx="340" cy="50" r="8" fill="#fff5e6" opacity="0.7"/>
+      <circle cx="340" cy="50" r="4" fill="#fff5e6"/>
+      <circle cx="540" cy="118" r="2" fill="#fae0c4" opacity="0.65"/>
+      <circle cx="500" cy="155" r="2" fill="#fae0c4" opacity="0.55"/>
+      <circle cx="465" cy="195" r="2" fill="#fae0c4" opacity="0.45"/>
+      <circle cx="155" cy="105" r="2" fill="#fae0c4" opacity="0.6"/>
+      <circle cx="195" cy="148" r="2" fill="#fae0c4" opacity="0.5"/>
     </svg>
   </figure>
 
   <section>
     <h2><span class="num">01</span>The context</h2>
-    <p class="lead">I joined Cisco's global sales analytics team in 2019. The brief was modest: build dashboards. The actual problem wasn't.</p>
-    <p>1,000+ account executives across 47 countries were operating on stale data. Reports compiled overnight. Pricing decisions made on yesterday's signal. Analyst capacity was the official bottleneck — every week brought new requests for "just one more report" and the queue grew faster than the team could clear it.</p>
-    <p>The team's response, historically, had been to hire more analysts and build more reports. I diagnosed it differently.</p>
+    <p class="lead">I joined Mesh-AI as employee #13 in early 2022. Pre-seed funding, three AEs, six CSMs each managing six concurrent accounts.</p>
+    <p>The company sold bespoke ML consulting to enterprise clients — Visa, Experian, the London Stock Exchange. Smart engagements, real revenue, but every one of them was a one-off. Each engagement built artifacts that never made it back into the product. Each onboarding took 14 days of CSM time. Each renewal felt like selling the company from scratch.</p>
+    <p>The official goal was $10M ARR. The actual constraint was that the model couldn't scale to it.</p>
   </section>
 
   <section>
     <h2><span class="num">02</span>The diagnosis</h2>
-    <p>The bottleneck wasn't the analysts. It was the compile step.</p>
-    <p>Reps weren't underperforming — they were operating blind. Analysts weren't underdelivering — they were stuck in 12-hour report-compile loops, where the actual analytical work was a fraction of the elapsed time. Building more reports would compound the problem. Every new dashboard added another compile, another fragile pipeline, another four hours of weekly maintenance.</p>
-    <p>The right move was eliminating the compile step entirely. Replace the manual report layer with real-time, self-serve infrastructure. Move analysts up the value stack — from compiling to interpreting. Move reps up too — from reading week-old PDFs to querying live data themselves.</p>
-    <blockquote>The fix wasn't more reports. It was deleting the report.</blockquote>
+    <p>Mesh-AI didn't have a product problem. It had a <strong>category</strong> problem.</p>
+    <p>The company was a consulting firm with analytics deliverables, not an analytics product company. That distinction matters because it determines what the sales team is actually selling — relationship and trust on one side, repeatable infrastructure on the other. At $0–$2M ARR, consulting works. At $5M+ it cracks. We were heading for the crack.</p>
+    <p>The fix wasn't more salespeople. It was building the artifact the sales team had been trying to describe but didn't have — a productized analytics infrastructure that turned every bespoke deliverable into a reusable layer. The dashboards I built for executive reviews weren't going to be just internal tools. They were going to be the demo.</p>
+    <blockquote>The dashboards weren't internal tools. They were the product the sales team had been trying to sell.</blockquote>
   </section>
 
   <section>
     <h2><span class="num">03</span>The build</h2>
-    <p>Sole engineer-PM on the platform side, in coordination with data engineering and ML teams. Shipped over four quarters.</p>
+    <p>Sole owner of the analytics infrastructure layer. Coordinated with engineering, customer success, and sales over four quarters.</p>
     <ol class="build-list">
       <li>
-        <strong>Real-time data integration</strong>
-        Aggregated CRM, ERP, and external sources into a unified hub. 2.5M sales records processed daily, 99.7% uptime SLA. Reps queried live data instead of waiting for the next report cycle.
+        <strong>Twelve production dashboards on a modular pipeline</strong>
+        Across finance, sales, HR, and ops, powering weekly executive business reviews. The architectural choice that mattered: a shared transformation layer sat between source connectors and the dashboard layer, so every new client engagement reused the same 80% of the pipeline. The thirteenth dashboard took hours instead of weeks. The same pattern compounded into the productization move below.
       </li>
       <li>
-        <strong>Self-serve dashboards</strong>
-        Drag-and-drop customization. Account executives configured their own views without an IT request or an analyst ticket. Time-to-insight collapsed from hours to minutes.
+        <strong>Consulting-to-product framework</strong>
+        Designed an ML-powered framework converting bespoke client work into scalable product offerings. Each engagement's deliverables got templated into a reusable module — domain-specific schemas, scoring logic, the dashboard surface — so the next engagement in that domain shipped in weeks, not quarters. Account expansion 3×: 8 users per account → 24. Same engagement fee, three times the revenue, without three times the work.
       </li>
       <li>
-        <strong>Predictive models on deal attributes</strong>
-        XGBoost classifiers trained on 24 deal features. Flagged $23M of at-risk pipeline (87% accuracy validated against actual outcomes) and surfaced $8.5M in cross-sell opportunities — sales closed 34% within 90 days.
+        <strong>Onboarding redesign</strong>
+        Cut enterprise onboarding from 14 days to 3 by replacing bespoke setup with reusable templates. CSM capacity doubled — same six people, twelve concurrent accounts each.
       </li>
       <li>
-        <strong>Pricing strategy from 3,200 deals</strong>
-        Synthesized win-loss patterns across 18 product lines into a tiered pricing recommendation. Presented to VP Product and VP Sales. Restructure launched Q3 2020.
+        <strong>Analytics evaluation framework, published</strong>
+        Wrote and released a public framework for evaluating ML in enterprise environments. 30,000+ views. Contributed $1.2M in closed-won pipeline as inbound — sales referenced the framework directly in deals.
+      </li>
+      <li>
+        <strong>Repositioning at-risk renewals</strong>
+        Took $2M+ in technical-advisory renewals at risk and recast them as strategic business-outcome engagements. All renewed.
       </li>
     </ol>
   </section>
 
   <section>
     <h2><span class="num">04</span>The result</h2>
-    <p>Validated by Finance via independent time-motion study. Adopted by 1,000+ AEs globally within two quarters of full rollout.</p>
+    <p>Mesh-AI scaled from $0 to $10M ARR in 12 months. Sales team grew from 3 to 9 AEs without a process breakdown. Visa, Experian, and the London Stock Exchange all expanded their accounts.</p>
     <div class="stats">
       <div class="stat">
-        <div class="stat-value">$10M<span class="delta">+</span></div>
-        <div class="stat-label">Annual productivity gain</div>
+        <div class="stat-value">$10M<span class="delta"> ARR</span></div>
+        <div class="stat-label">From $0, in 12 months</div>
       </div>
       <div class="stat">
-        <div class="stat-value">−70<span class="delta">%</span></div>
-        <div class="stat-label">Report time, 12h to 3.6h</div>
+        <div class="stat-value">3×</div>
+        <div class="stat-label">Account expansion (8 → 24 users)</div>
       </div>
       <div class="stat">
-        <div class="stat-value">+18<span class="delta">%</span></div>
-        <div class="stat-label">Avg deal size, $47K to $55K</div>
+        <div class="stat-value">−79<span class="delta">%</span></div>
+        <div class="stat-label">Onboarding time, 14 days to 3</div>
       </div>
       <div class="stat">
-        <div class="stat-value">+7<span class="delta">pts</span></div>
-        <div class="stat-label">Win rate, 42% to 49%</div>
+        <div class="stat-value">$2M<span class="delta">+</span></div>
+        <div class="stat-label">At-risk renewals secured</div>
       </div>
     </div>
-    <p class="aside">Three features Sales had requested were reprioritized off the back of the deal-attribute analysis, accelerating time-to-market by one quarter.</p>
+    <p class="aside">Sales team scaled 3× without process breakdown — three AEs to nine, on the same operational backbone.</p>
   </section>
 
   <section>
     <h2><span class="num">05</span>The pattern</h2>
-    <p>This wasn't on the roadmap. The brief was "build more dashboards." I diagnosed the bottleneck — compile latency, not analyst capacity — and architected the solution that the brief, taken literally, would have made worse.</p>
-    <p>That's the operator move I'd run again, twice: at <a class="inline" href="mesh-ai-case-study.html">Mesh-AI</a>, the brief was "scale the consulting motion" and the actual problem was that consulting wasn't the product yet. At <a class="inline" href="om-case-study.html">OM</a>, the brief — to the extent there is one — is "score jobs against my profile" and the actual problem is that the signal layer underneath every GTM team is broken.</p>
-    <p>The credential isn't building dashboards or pipelines or scoring engines. It's diagnosing what management, the team, or the market is asking for incorrectly — and shipping the thing that actually solves the underlying problem instead.</p>
+    <p>The Mesh-AI move was productization. The dashboards I built for executive reviews became the demo, then the differentiator, then the wedge that converted bespoke consulting engagements into reusable software. Internal infrastructure became the product surface.</p>
+    <p>That's the rarer half of the operator credential. <a class="inline" href="../cisco-case-study/">Cisco</a> proved I can diagnose what's broken; Mesh-AI proved I can convert what I built into what gets sold. Most analytics work stays inside a company forever — the analyst leaves and the dashboards get rebuilt by the next person. The Mesh-AI version was different because the artifacts were designed to scale beyond the engagement that produced them.</p>
+    <p>It's also the move <a class="inline" href="../om-case-study/">OM</a> is built on. The infrastructure I previously deployed inside one company at a time, I'm now building as the product itself. Same productization instinct, applied to a category instead of a client.</p>
   </section>
 
   <footer>
     <span>Chris Kirilov · GTM Engineer + Founder</span>
-    <a class="next" href="mesh-ai-case-study.html">Next: Mesh-AI <span class="arrow">→</span></a>
+    <a class="next" href="../om-case-study/">Next: OM <span class="arrow">→</span></a>
   </footer>
 
 </article>
