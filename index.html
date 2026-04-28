@@ -289,6 +289,22 @@ section.work {
   text-transform: none;
 }
 
+.case .meta .current {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+
+.case .meta .current .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
 .case h3 {
   font-family: var(--serif);
   font-size: 26px;
@@ -740,7 +756,8 @@ footer.foot {
           </svg>
         </div>
         <div class="meta">
-          <span>OM · San Francisco · Current</span>
+          <span>OM · San Francisco</span>
+          <span class="current"><span class="dot"></span>Current</span>
         </div>
         <h3>The signal layer <em>that should exist</em></h3>
         <p>The same operator move at category scope — diagnose the broken signal layer underneath modern GTM, build the platform every AI-native company is currently rebuilding in-house, badly. 800+ sources, 170-node knowledge graph, sub-$1/day inference. Solo.</p>
