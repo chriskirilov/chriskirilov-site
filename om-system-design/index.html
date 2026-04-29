@@ -508,7 +508,7 @@ final_score = rescale(raw_score, 1, 10)</code></pre>
 
   <p>Operating cadence — 88,125 active jobs, 184K cumulative evaluations, 600 LLM calls per day at sub-$1 daily inference cost. ATS API polling at 6am and 6pm. Email ingestion every 30 minutes. Company-discovery sweep weekly. Throughput peaks at 1,540 jobs ingested in a heavy day.</p>
 
-  <p>Operator-level texture worth knowing: 429s aren't in the retry set right now (the retry covers 5xx and 403 only — Workday has dropped boards silently when its quota fires, will fix). Greenhouse uses ETag-based 304 caching. The others don't, so they re-fetch the world daily. Auth is per-route via <code>@login_required</code> instead of central middleware — easy to ship a new endpoint unauthenticated, will move to a Flask blueprint with auth applied at registration.</p>
+  <p>Operator-level texture worth knowing: the retry set is the most-criticized piece — 429s aren't in it (real bug, that's the actual rate-limit code; Workday drops boards silently when its quota fires), and 403 currently is in it (also wrong — 403 means the server understood and refused, retrying just burns calls). ETag/304 conditional GETs are Greenhouse-only because that's where I implemented it; the others re-fetch daily until I extend the client. Auth is per-route via decorators (Bearer for <code>/api/*</code>, <code>@login_required</code> for web routes), not central middleware — will move to a Flask blueprint with auth applied at registration before another engineer touches the surface.</p>
 
   <h3>Storage</h3>
 
